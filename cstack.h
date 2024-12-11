@@ -3,27 +3,6 @@
 
 typedef int hstack_t;
 
-struct node
-{
-    const struct node* prev;       
-    unsigned int size;
-    char data[0];     
-};
-
-typedef struct node* stack_t;
-
-typedef struct stack_entry
-{
-    int reserved;
-    stack_t stack;
-}stack_entry_t;
-
-struct stack_entries_table
-{
-    unsigned int size;
-    stack_entry_t* entries;
-};
-
 hstack_t stack_new(void);
 void stack_free(const hstack_t stack);
 int stack_valid_handler(const hstack_t stack);

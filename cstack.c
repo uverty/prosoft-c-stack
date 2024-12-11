@@ -4,12 +4,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct node* stack_t;
+
+struct node
+{
+    const struct node* prev;       
+    unsigned int size;
+    char data[0];     
+};
+
+typedef struct stack_entry
+{
+    int reserved;
+    stack_t stack;
+}stack_entry_t;
+
+struct stack_entries_table
+{
+    unsigned int size;
+    stack_entry_t* entries;
+};
+
 struct stack_entries_table g_table = {0u, NULL};
 
 //0 - соответствующий хэндлеру стек существует, 1 - нет.
 int stack_valid_handler(const hstack_t hstack)
-{
-    if(hstack >= g_table.size)
+{   
+    if((unsigned)hstack >= g_table.size)
     {
         return 1;
     }    
@@ -26,19 +47,19 @@ int stack_valid_handler(const hstack_t hstack)
 {   
     if(stack_valid_handler(stack))
     {
-        printf("invalid handler");
-        exit(1);
+        //printf("invalid handler");
+        return;
     }
     if(!data_in || !size)
     {
-        printf("data_in or size incorrect\n");
-        exit(1);
+        //printf("data_in or size incorrect\n");
+        return;
     }
     stack_t next_node = malloc(sizeof(struct node) + size);
     if(next_node == NULL)
     {
-        printf("malloc incorrect\n");
-        exit(1);
+        //printf("malloc incorrect\n");
+        return;
     }
     next_node->prev = g_table.entries[stack].stack;
     next_node->size = size;
@@ -50,34 +71,48 @@ unsigned int stack_pop(const hstack_t stack, void* data_out, const unsigned int 
 {
     if(stack_valid_handler(stack))
     {
-        printf("invalid handler");
+        //printf("invalid handler");
         return 0;
-    }
+    } 
     if(!data_out || !size)
     {
-        printf("data_out or size incorrect\n");
-        exit(1);
+        //printf("data_out or size incorrect\n");
+        return 0;
     }
-    memcpy(data_out, g_table.entries[stack].stack->data, size);
+    if (g_table.entries[stack].stack == NULL)
+    {
+        return 0;
+    }
+    if(size != g_table.entries[stack].stack->size)
+    {
+        //printf("bad size");
+        return 0;
+    }
+    void* res = memcpy(data_out, g_table.entries[stack].stack->data, size);
+    if (res == NULL)
+    {
+        return 0;
+    }
+
     stack_t del_list = g_table.entries[stack].stack;
-    g_table.entries[stack].stack = g_table.entries[stack].stack->prev;
+    g_table.entries[stack].stack = (stack_t)g_table.entries[stack].stack->prev;
     free(del_list);
     return size;
 }
 
-size_t stack_size(const hstack_t stack)
+unsigned int stack_size(const hstack_t stack)
 {
     if(stack_valid_handler(stack))
     {
-        printf("invalid handler");
+        //printf("invalid handler");
         return 0;
     }
-    size_t i = 0;
 
-    while(g_table.entries[stack].stack  != NULL)
+    stack_t head = g_table.entries[stack].stack;
+    unsigned int i = 0;
+    while(head != NULL)
     {
-        g_table.entries[stack].stack = g_table.entries[stack].stack->prev;
-
+        head = (stack_t)head->prev;
         i++;
     }
 
@@ -89,12 +124,12 @@ size_t stack_size(const hstack_t stack)
 hstack_t stack_new(void)
 {
     if(g_table.size == 1024){
-        printf("Кол-во стеков равно 1024!");
+        //printf("Кол-во стеков равно 1024!");
         return -1;
     }
     int realloc_need = 1;
-    int free_cell = 0;
-    for(int i = 0; i < g_table.size; i++)
+    unsigned int free_cell = 0;
+    for(unsigned int i = 0; i < g_table.size; i++)
     {
         if(g_table.entries[i].reserved == 0)
         {
@@ -103,28 +138,39 @@ hstack_t stack_new(void)
             break;
         }
     }
+    stack_entry_t new_stack;
+    new_stack.reserved = 1u;
+    new_stack.stack = NULL;
     if(realloc_need == 1)
     {
         g_table.entries =  realloc(g_table.entries, (g_table.size + 1) * sizeof(stack_entry_t));
         if(g_table.entries == NULL)
         {
-            printf("realloc incorrect\n");
+            //printf("realloc incorrect\n");
             return -1;
         }
+        g_table.entries[g_table.size] = new_stack;
+        g_table.size++;
+        return g_table.size - 1;
     }
-    stack_entry_t new_stack;
-    new_stack.reserved = 1u;
-    new_stack.stack = NULL;
-    g_table.entries[realloc_need ? g_table.size : free_cell] = new_stack;
-    g_table.size++;
-    return g_table.size - 1;
+    else
+    {
+        g_table.entries[free_cell]= new_stack;
+        return free_cell;
+    }
 }
 
 void stack_free(const hstack_t hstack)
-{   while(g_table.entries[hstack].stack != NULL)
+{   
+    if(stack_valid_handler(hstack))
+    {
+        //printf("invalid handler\n");
+        return;
+    }
+    while(g_table.entries[hstack].stack != NULL)
     {
         stack_t del_list = g_table.entries[hstack].stack;
-        g_table.entries[hstack].stack = g_table.entries[hstack].stack->prev;
+        g_table.entries[hstack].stack = (stack_t)g_table.entries[hstack].stack->prev;
         free(del_list);
     }
     g_table.entries[hstack].reserved = 0;
