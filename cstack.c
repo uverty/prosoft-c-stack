@@ -1,6 +1,5 @@
 #include "cstack.h"
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,7 +29,7 @@ struct stack_entries_table g_table = {0u, NULL};
 //0 - соответствующий хэндлеру стек существует, 1 - нет.
 int stack_valid_handler(const hstack_t hstack)
 {   
-    if((unsigned)hstack >= g_table.size)
+    if((unsigned)hstack >= g_table.size  || hstack < 0)
     {
         return 1;
     }    
@@ -123,10 +122,6 @@ unsigned int stack_size(const hstack_t stack)
 
 hstack_t stack_new(void)
 {
-    if(g_table.size == 1024){
-        //printf("Кол-во стеков равно 1024!");
-        return -1;
-    }
     int realloc_need = 1;
     unsigned int free_cell = 0;
     for(unsigned int i = 0; i < g_table.size; i++)
@@ -142,22 +137,23 @@ hstack_t stack_new(void)
     new_stack.reserved = 1u;
     new_stack.stack = NULL;
     if(realloc_need == 1)
-    {
-        g_table.entries =  realloc(g_table.entries, (g_table.size + 1) * sizeof(stack_entry_t));
-        if(g_table.entries == NULL)
+    {   
+        stack_entry_t* entries_safe;
+        entries_safe = realloc(g_table.entries, (g_table.size + 1) * sizeof(stack_entry_t));
+        if(entries_safe == NULL)
         {
             //printf("realloc incorrect\n");
             return -1;
         }
+        g_table.entries = entries_safe;
         g_table.entries[g_table.size] = new_stack;
         g_table.size++;
         return g_table.size - 1;
     }
-    else
-    {
-        g_table.entries[free_cell]= new_stack;
-        return free_cell;
-    }
+    
+    g_table.entries[free_cell]= new_stack;
+    return free_cell;
+    
 }
 
 void stack_free(const hstack_t hstack)
